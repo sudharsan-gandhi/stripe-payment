@@ -8,6 +8,7 @@ async function createProduct(name) {
         name: name,
         type: 'service',
     });
+    return product;
 }
 
 async function createPlan(product_id) {
@@ -22,10 +23,15 @@ async function createPlan(product_id) {
     return plan;
 }
 
-async function createUser() {
+async function updatePlanAmount(id, amount) {
+    const plan = await stripe.plans.update(id, {amount: amount});
+    return plan;
+}
+
+async function createUser(name, email) {
     const customer = await stripe.customers.create({
-        name: "test customer",
-        email: "testcustomer1@gmail.com",
+        name: name,
+        email: email,
         description: 'test customer',
         source: "tok_1FUvCsHWyDmfOAlYOQCgsJN6" // obtained with Stripe.js
     });
@@ -48,20 +54,47 @@ async function createSubscription(plan, customer) {
             {
                 plan: plan.id,
             }
-        ]
+        ],
+        billing_thresholds : {
+            amount_gte: 100,
+            reset_billing_cycle_anchor: true
+        }
     });
+    return subscription;
+}
+
+async function chargeUser(user, amount) {
+    let charge = stripe.charges.create({
+        customer: user.id,
+        amount,
+        description: `testing with amount ${amount}`,
+        currency: 'usd'
+    })
+    return charge;
+}
+
+async function createPOJO(product_name, username, email) {
+    const product = await createProduct(product_name);
+    const plan = await createPlan(product.id);
+    const user = await createUser(username, email);
+    const subscription = await createSubscription(plan, user);
+    const pojo = {product, plan, user, subscription};
+    return pojo
 }
 
 
 
 
 
-module.exports = stripeObject = {
+module.exports = pay = {
     createProduct: createProduct,
     createPlan: createPlan,
     createUser: createUser,
     getUser: getUser,
-    createSubscription: createSubscription
+    createSubscription: createSubscription,
+    chargeUser: chargeUser,
+    createPOJO: createPOJO,
+    updatePlanAmount: updatePlanAmount
 }
 
 if (process.env.console) {
@@ -72,5 +105,5 @@ if (process.env.console) {
         input: process.stdin,
         terminal: true,
     })
-    server.context.stripe = stripeObject
+    // server.context.stripe = stripeObject
 }
